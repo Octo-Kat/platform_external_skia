@@ -44,6 +44,14 @@ struct FamilyData {
     int currentTag;                    // A flag to indicate whether we're in nameset/fileset tags
 };
 
+static const uint32_t MONOSPACE_FONTS_COUNT = 4;
+static const char* MONOSPACE_FONTS[] = {
+    "monospace",
+    "courier",
+    "courier new",
+    "monaco"
+};
+
 /**
  * Handler for arbitrary text. This is used to parse the text inside each name
  * or file tag. The resulting strings are put into the fNames or FontFileInfo arrays.
@@ -262,31 +270,32 @@ static void getThemeFontFamilies(SkTDArray<FontFamily*> &fontFamilies) {
     parseConfigFile(THEME_FONTS_FILE, fontFamilies);
 }
 
-static bool hasFontFamily(const char* familyName, SkTDArray<FontFamily*> &fontFamilies) {
+static bool hasMonospaceFont(SkTDArray<FontFamily*> &fontFamilies) {
     for (int i = 0; i < fontFamilies.count(); i++) {
         FontFamily* family = fontFamilies[i];
         for (int j = 0; j < family->fNames.count(); j++) {
             const char* name = family->fNames[j];
-            if (strcmp(name, familyName) == 0) {
-                return true;
+            for (int k = 0; k < MONOSPACE_FONTS_COUNT; k++) {
+                if (strcmp(name, MONOSPACE_FONTS[k]) == 0) return true;
             }
         }
     }
+
     return false;
 }
 
-/**
- * Adds missing font families found in system fonts that are not in the theme's fonts
- */
-static void addSystemFontsToThemeFonts(SkTDArray<FontFamily*> &themeFontFamilies,
-                                       SkTDArray<FontFamily*> &systemFontFamilies) {
+static void addMonospaceFontToThemeFonts(SkTDArray<FontFamily*> &themeFontFamilies,
+                                         SkTDArray<FontFamily*> &systemFontFamilies) {
     for (int i = 0; i < systemFontFamilies.count(); i++) {
         FontFamily* family = systemFontFamilies[i];
         for (int j = 0; j < family->fNames.count(); j++) {
             const char* name = family->fNames[j];
-            if (!hasFontFamily(name, themeFontFamilies)) {
-                systemFontFamilies[i]->fIsThemeFallbackFont = true;
-                *themeFontFamilies.append() = systemFontFamilies[i];
+            for (int k = 0; k < MONOSPACE_FONTS_COUNT; k++) {
+                if (strcmp(name, MONOSPACE_FONTS[k]) == 0) {
+                    systemFontFamilies[i]->fIsFallbackMonospaceFont = true;
+                    *themeFontFamilies.append() = systemFontFamilies[i];
+                    return;
+                }
             }
         }
     }
@@ -306,10 +315,10 @@ void SkFontConfigParser::GetFontFamilies(SkTDArray<FontFamily*> &fontFamilies) {
 
     if (use_theme_font) {
         getThemeFontFamilies(fontFamilies);
-        if (fontFamilies.count() > 0) {
+        if (!hasMonospaceFont(fontFamilies) && fontFamilies.count() > 0) {
             SkTDArray<FontFamily*> systemFontFamilies;
             getSystemFontFamilies(systemFontFamilies);
-            addSystemFontsToThemeFonts(fontFamilies, systemFontFamilies);
+            addMonospaceFontToThemeFonts(fontFamilies, systemFontFamilies);
         }
     }
 
